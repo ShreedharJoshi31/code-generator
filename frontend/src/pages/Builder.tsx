@@ -18,6 +18,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../compone
 import { Button } from "../components/ui/button"
 import { ArrowLeft, Code, Sparkles } from "lucide-react"
 import { Link } from "react-router-dom"
+import JSZip from 'jszip'
 
 export function Builder() {
   const location = useLocation()
@@ -57,6 +58,7 @@ export function Builder() {
               const file = currentFileStructure.find((x) => x.path === currentFolder)
               if (!file) {
                 currentFileStructure.push({
+                  id: crypto.randomUUID(), // Add a unique ID here
                   name: currentFolderName,
                   type: "file",
                   path: currentFolder,
@@ -71,6 +73,7 @@ export function Builder() {
               if (!folder) {
                 // create the folder
                 currentFileStructure.push({
+                  id: crypto.randomUUID(), // Add a unique ID here
                   name: currentFolderName,
                   type: "folder",
                   path: currentFolder,
@@ -100,46 +103,54 @@ export function Builder() {
 
   useEffect(() => {
     const createMountStructure = (files: FileItem[]): Record<string, any> => {
-      const mountStructure: Record<string, any> = {}
-
-      const processFile = (file: FileItem, isRootFolder: boolean) => {
-        if (file.type === "folder") {
-          // For folders, create a directory entry
-          mountStructure[file.name] = {
-            directory: file.children
-              ? Object.fromEntries(file.children.map((child) => [child.name, processFile(child, false)]))
-              : {},
-          }
-        } else if (file.type === "file") {
-          if (isRootFolder) {
-            mountStructure[file.name] = {
-              file: {
-                contents: file.content || "",
-              },
-            }
-          } else {
-            // For files, create a file entry with contents
-            return {
-              file: {
-                contents: file.content || "",
-              },
-            }
-          }
-        }
-
-        return mountStructure[file.name]
-      }
-
-      // Process each top-level file/folder
-      files.forEach((file) => processFile(file, true))
-
-      return mountStructure
-    }
+		const mountStructure: Record<string, any> = {}
+	  
+		const processFile = (file: FileItem, isRootFolder: boolean, path: string = '') => {
+		  // Create a unique key using the path
+		  const uniqueKey = path ? `${path}/${file.name}` : file.name
+	  
+		  if (file.type === "folder") {
+			// For folders, create a directory entry
+			mountStructure[uniqueKey] = {
+			  directory: file.children
+				? Object.fromEntries(
+					file.children.map((child) => {
+					  const childKey = `${uniqueKey}/${child.name}`
+					  return [child.name, processFile(child, false, uniqueKey)]
+					})
+				  )
+				: {},
+			}
+		  } else if (file.type === "file") {
+			if (isRootFolder) {
+			  mountStructure[uniqueKey] = {
+				file: {
+				  contents: file.content || "",
+				},
+			  }
+			} else {
+			  // For files, create a file entry with contents
+			  return {
+				file: {
+				  contents: file.content || "",
+				},
+			  }
+			}
+		  }
+	  
+		  return mountStructure[uniqueKey]
+		}
+	  
+		// Process each top-level file/folder
+		files.forEach((file) => processFile(file, true))
+	  
+		return mountStructure
+	  }
 
     const mountStructure = createMountStructure(files)
 
     // Mount the structure if WebContainer is available
-    webcontainer?.mount(mountStructure)
+	if (mountStructure) webcontainer?.mount(mountStructure)
   }, [files, webcontainer])
 
   async function init() {
@@ -220,6 +231,7 @@ export function Builder() {
   }
 
   // In the Builder.tsx file, add this function before the return statement
+  
 const handleFileContentChange = (newContent: string) => {
     if (!selectedFile) return;
     
@@ -250,6 +262,46 @@ const handleFileContentChange = (newContent: string) => {
     });
   };
 
+  const exportCode = async () => {
+    try {
+      const zip = new JSZip()
+
+      // Function to recursively add files to the zip
+      const addFilesToZip = (items: FileItem[], currentPath = "") => {
+        items.forEach((item) => {
+          const itemPath = currentPath ? `${currentPath}/${item.name}` : item.name
+
+          if (item.type === "file") {
+            zip.file(itemPath, item.content || "")
+          } else if (item.type === "folder" && item.children) {
+            // Create folder and add its children
+            addFilesToZip(item.children, itemPath)
+          }
+        })
+      }
+
+      // Add all files to the zip
+      addFilesToZip(files)
+
+      // Generate the zip file
+      const content = await zip.generateAsync({ type: "blob" })
+
+      // Create a download link and trigger the download
+      const url = URL.createObjectURL(content)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = "website-project.zip"
+      document.body.appendChild(link)
+      link.click()
+
+      // Clean up
+      URL.revokeObjectURL(url)
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error("Error exporting code:", error)
+    }
+  }
+
   return (
     <div className="h-screen bg-background flex flex-col">
       <header className="border-b px-6 py-3 flex items-center justify-between">
@@ -266,7 +318,7 @@ const handleFileContentChange = (newContent: string) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={exportCode}>
             <Code className="h-4 w-4" />
             Export Code
           </Button>
@@ -316,7 +368,7 @@ const handleFileContentChange = (newContent: string) => {
                     <div className="h-full overflow-hidden">
                       <FileExplorer files={files} onFileSelect={setSelectedFile} selectedFile={selectedFile} />
                     </div>
-                    <div className="h-full">
+                    <div className="h-full overflow-auto">
                       <CodeEditor file={selectedFile} onChange={handleFileContentChange} />
                     </div>
                   </div>

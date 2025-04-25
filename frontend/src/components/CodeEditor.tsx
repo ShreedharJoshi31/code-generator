@@ -1,4 +1,4 @@
-"use client"
+import { useState } from "react"
 import type { FileItem } from "../types"
 import CodeMirror from "@uiw/react-codemirror"
 import { vscodeDark } from "@uiw/codemirror-theme-vscode"
@@ -6,7 +6,10 @@ import { javascript } from "@codemirror/lang-javascript"
 import { html } from "@codemirror/lang-html"
 import { css } from "@codemirror/lang-css"
 import { json } from "@codemirror/lang-json"
-import { FileIcon } from "lucide-react"
+import { Card } from "../components/ui/card"
+import { FileIcon, FolderIcon, Copy, CopyCheck } from "lucide-react"
+import { Button } from "../components/ui/button"
+import { ScrollArea } from "../components/ui/scroll-area"
 
 interface CodeEditorProps {
   file: FileItem | null
@@ -15,6 +18,8 @@ interface CodeEditorProps {
 }
 
 export function CodeEditor({ file, onChange, readOnly = false }: CodeEditorProps) {
+  const [copied, setCopied] = useState(false)
+
   const getLanguageExtension = (fileName: string) => {
     if (!fileName) return javascript()
 
@@ -38,50 +43,74 @@ export function CodeEditor({ file, onChange, readOnly = false }: CodeEditorProps
 
   if (!file) {
     return (
-      <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg border">
+      <Card className="h-full flex items-center justify-center bg-muted/30">
         <div className="text-center p-6 space-y-2">
-          <FileIcon className="w-12 h-12 mx-auto text-muted-foreground/60" />
+          <FolderIcon className="w-12 h-12 mx-auto text-muted-foreground/60" />
           <p className="text-muted-foreground">Select a file to view its contents</p>
         </div>
-      </div>
+      </Card>
     )
   }
 
+  const handleCopyCode = async () => {
+    if (file.content) {
+      try {
+        await navigator.clipboard.writeText(file.content)
+        setCopied(true) // Change icon to CopyCheck
+        setTimeout(() => setCopied(false), 2000) // Reset after 5 seconds
+      } catch (err) {
+        console.error("Failed to copy code: ", err)
+      }
+    }
+  }
+
   return (
-    <div className="h-full flex flex-col overflow-hidden rounded-lg border">
-      <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
-        <FileIcon className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{file.path}</span>
+    <Card className="h-full flex flex-col overflow-hidden border-0">
+      <div className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-muted/30">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <FileIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <span className="text-sm font-medium truncate">{file.path}</span>
+        </div>
+        <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={handleCopyCode}>
+          {copied ? (
+            <CopyCheck className="h-4 w-4 flex-shrink-0 text-green-500" />
+          ) : (
+            <Copy className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          )}
+        </Button>
       </div>
-      <CodeMirror
-        value={file.content || ""}
-        height="100%"
-        theme={vscodeDark}
-        extensions={[getLanguageExtension(file.path)]}
-        onChange={onChange}
-        readOnly={readOnly}
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: true,
-          highlightSpecialChars: true,
-          foldGutter: true,
-          drawSelection: true,
-          dropCursor: true,
-          allowMultipleSelections: true,
-          indentOnInput: true,
-          syntaxHighlighting: true,
-          bracketMatching: true,
-          closeBrackets: true,
-          autocompletion: true,
-          rectangularSelection: true,
-          crosshairCursor: true,
-          highlightActiveLine: true,
-          highlightSelectionMatches: true,
-          closeBracketsKeymap: true,
-          searchKeymap: true,
-        }}
-      />
-    </div>
+      {/* <div className="flex-1 overflow-y-scroll"> */}
+      <ScrollArea className="flex-1 h-[calc(100%-37px)]">
+        <CodeMirror
+          value={file.content || ""}
+          height="100%"
+          theme={vscodeDark}
+          extensions={[getLanguageExtension(file.path)]}
+          readOnly={readOnly}
+          onChange={onChange}
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLineGutter: true,
+            highlightSpecialChars: true,
+            foldGutter: true,
+            drawSelection: true,
+            dropCursor: true,
+            allowMultipleSelections: true,
+            indentOnInput: true,
+            syntaxHighlighting: true,
+            bracketMatching: true,
+            closeBrackets: true,
+            autocompletion: true,
+            rectangularSelection: true,
+            crosshairCursor: true,
+            highlightActiveLine: true,
+            highlightSelectionMatches: true,
+            closeBracketsKeymap: true,
+            searchKeymap: true,
+          }}
+        />
+      </ScrollArea>
+      {/* </div> */}
+    </Card>
   )
 }
-

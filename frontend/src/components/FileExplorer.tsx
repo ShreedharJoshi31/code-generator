@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import { ChevronRight, ChevronDown, FileIcon, FolderIcon, FolderOpenIcon } from "lucide-react"
 import type { FileItem } from "../types"

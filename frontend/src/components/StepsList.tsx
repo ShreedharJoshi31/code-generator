@@ -1,4 +1,3 @@
-"use client"
 import { CheckCircle, Circle, Clock } from "lucide-react"
 import type { Step } from "../types"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
