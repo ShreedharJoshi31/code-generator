@@ -65,4 +65,4 @@ app.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         response: (_a = response.content[0]) === null || _a === void 0 ? void 0 : _a.text
     });
 }));
-app.listen(3000);
+app.listen(3001);
