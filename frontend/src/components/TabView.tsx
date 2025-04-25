@@ -1,4 +1,3 @@
-"use client"
 import { Code2, Eye } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs"
 
